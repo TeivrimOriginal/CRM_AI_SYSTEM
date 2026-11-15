@@ -1,15 +1,13 @@
 @"
 # CRM — AI BUSINESS SYSTEMS DENMARK
 
-CRM для веб-дизайн-студии: компании, контакты, КП, сделки, задачи, воронка, отчёт.
-
-## 🚀 Запуск через Docker (рекомендуется)
+## Запуск через Docker
 
 `docker compose up --build`
 
 Открой http://localhost:8000/login
 
-## 🐍 Запуск без Docker (локально)
+## Запуск без Docker
 
 1. PostgreSQL 16, создай БД:
    CREATE USER crm WITH PASSWORD 'crm';
@@ -20,14 +18,12 @@ CRM для веб-дизайн-студии: компании, контакты,
 5. `alembic upgrade head` → `python -m app.seed`
 6. `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 
-## 🔑 Вход
+## Вход
 
 - supervisor: `user0@crm.local` / `pass123`
 - менеджеры: `user1@crm.local` ... `user99@crm.local` / `pass123`
 
-(после `python -m tests.seed_test_data`, опционально)
-
-## ✅ Что сделано по ТЗ
+## Что сделано по ТЗ
 
 **Модель данных** — 14 таблиц (User, Country, City, Niche, Service, Company, Contact, Deal, Proposal, Task, Activity, Handoff, Journal, AppSetting), поля, FK, UNIQUE-ограничения.
 
@@ -59,17 +55,3 @@ CRM для веб-дизайн-студии: компании, контакты,
 
 **Тесты** — `pytest -q tests/test_e2e.py tests/test_acceptance.py` → **16 passed** (8 сценариев приёмки ТЗ стр. 10 + 8 e2e).
 
-## ⚙️ PENDING_DECISION
-
-В `/settings` (supervisor):
-- `SALE_CONFIRMATION_CRITERION` — пусто = продажа заблокирована
-- `BELARUS_CHECK_REQUIRED_BEFORE` / `BELARUS_CHECKER_ROLE`
-
-## 📦 Отложено (v2)
-
-- Добавление/архивирование справочников через UI
-- Оптимистичная блокировка (409 при конкурентном изменении)
-- Column mapping в импорте
-- Кликабельные KPI в отчёте
-"@ | Set-Content README.md -Encoding UTF8
-Write-Host "OK: README.md перезаписан"
