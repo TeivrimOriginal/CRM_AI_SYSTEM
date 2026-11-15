@@ -1,0 +1,35 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Настройки — CRM</title>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% include "_theme.html" %}</head><body>
+<div class="app">
+{% with active='settings' %}{% include "_sidebar.html" %}{% endwith %}
+<div class="content">
+<div class="topbar"><h1>Настройки</h1></div>
+<div class="page" x-data="settingsApp()">
+<div class="card"><h2>Флаги PENDING_DECISION</h2>
+<label>Критерий подтверждения продажи</label>
+<select x-model="sc">
+<option value="">— пусто (продажа заблокирована, 409) —</option>
+<option value="manual">manual — вручную</option>
+<option value="contract_signed">contract_signed — договор</option>
+<option value="prepayment">prepayment — предоплата</option>
+<option value="custom">custom — своё</option>
+</select>
+<label>Проверка Беларуси: когда</label>
+<select x-model="bc"><option value="proposal_sent">proposal_sent</option><option value="handoff">handoff</option><option value="none">none</option></select>
+<label>Проверка Беларуси: кто</label>
+<select x-model="br"><option value="manager">manager</option><option value="supervisor">supervisor</option></select>
+<button class="btn" style="margin-top:16px" @click="save()">Сохранить</button>
+<div class="msg" x-show="msg" x-text="msg"></div>
+</div>
+<div class="card"><h2>Справочники</h2>
+<p class="muted" style="font-size:13px; margin-bottom:6px"><b>Страны:</b> {% for c in countries %}{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+<p class="muted" style="font-size:13px; margin-bottom:6px"><b>Ниши:</b> {% for n in niches %}{{ n.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+<p class="muted" style="font-size:13px"><b>Услуги:</b> {% for s in services %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+</div>
+</div></div></div>
+<script>
+function settingsApp(){return{sc:"{{ settings_vals.SALE_CONFIRMATION_CRITERION }}",bc:"{{ settings_vals.BELARUS_CHECK_REQUIRED_BEFORE }}",br:"{{ settings_vals.BELARUS_CHECKER_ROLE }}",msg:"",
+async save(){for(const [k,v] of [["SALE_CONFIRMATION_CRITERION",this.sc],["BELARUS_CHECK_REQUIRED_BEFORE",this.bc],["BELARUS_CHECKER_ROLE",this.br]]){await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:k,value:v})})}this.msg='Сохранено'}}}
+</script>
+</body></html>

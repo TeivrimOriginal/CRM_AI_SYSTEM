@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ deal.title }} — CRM</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {% include "_theme.html" %}
+</head>
+<body>
+<div class="app">
+  {% with active='pipeline' %}{% include "_sidebar.html" %}{% endwith %}
+  <div class="content">
+    <div class="topbar"><h1>{{ deal.title }} <span class="badge stage">{{ STAGE_RU.get(deal.stage, deal.stage) }}</span></h1></div>
+    <div class="page" x-data="dealApp()">
+      <div class="card"><h2>Сделка</h2>
+        <dl class="grid" style="display:grid; grid-template-columns:180px 1fr; gap:8px 16px; font-size:13.5px">
+          <dt class="muted">Компания</dt><dd><a href="/companies/{{ deal.company_id }}">{{ company.name if company else '—' }}</a></dd>
+          <dt class="muted">Сумма</dt><dd>{{ (deal.amount|string + ' ' + deal.currency) if deal.amount else 'Не указано' }}</dd>
+          <dt class="muted">Потребность</dt><dd>{{ deal.customer_need or 'Не указано' }}</dd>
+          <dt class="muted">Согласовано</dt><dd>{{ deal.agreed_scope or 'Не указано' }}</dd>
+          <dt class="muted">Срок</dt><dd>{{ deal.agreed_deadline_or_note or 'Не указано' }}</dd>
+          <dt class="muted">Причина отказа</dt><dd>{{ deal.loss_reason or '—' }}</dd>
+          <dt class="muted">Подтверждено</dt><dd>{{ deal.confirmed_at|localtime(user.timezone) if deal.confirmed_at else '—' }}</dd>
+          <dt class="muted">Проверка Беларуси</dt><dd>{{ MARKET_CHECK_RU.get(deal.market_check_status, deal.market_check_status or '—') }}</dd>
+        </dl>
+        <div class="toolbar" style="margin-top:16px">
+          <select id="stageSelect">{% for s in stages %}<option value="{{ s }}" {% if s == deal.stage %}selected{% endif %}>{{ STAGE_RU.get(s, s) }}</option>{% endfor %}</select>
+          <button class="btn" onclick="changeStage()">Сменить стадию</button>
+          <button class="btn sec" @click="showTask=true">+ Задача</button>
+          <button class="btn sec" @click="showProposal=true">+ Версия КП</button>
+          <button class="btn sec" @click="showHandoff=true">Передать заказ</button>
+          <button class="btn" style="background:var(--success)" @click="confirmSale()">Зафиксировать продажу</button>
+          {% if deal.market_check_status != 'passed' %}<button class="btn" style="background:var(--warning)" @click="checkBelarus()">Проверить Беларусь</button>{% endif %}
+          {% if user.role == 'supervisor' %}<button class="btn sec" @click="rollback()">Откатить стадию</button>{% endif %}
+        </div>
+      </div>
+      <div class="card"><h2>Версии КП</h2>
+        {% if proposals %}<table><thead><tr><th>Версия</th><th>Ссылка</th><th>Статус</th><th>Отправлено</th><th>Канал</th><th></th></tr></thead>
+        <tbody>{% for p in proposals %}<tr>
+          <td>v{{ p.version }}</td><td>{{ p.link or '—' }}</td><td><span class="badge">{{ PROPOSAL_STATE_RU.get(p.state, p.state) }}</span></td>
+          <td>{{ p.sent_at|localtime(user.timezone) if p.sent_at else '—' }}</td><td>{{ CHANNEL_RU.get(p.sent_channel, p.sent_channel or '—') }}</td>
+          <td>{% if p.state != 'sent' %}<button class="btn sm" onclick="markSent({{ p.id }})">Отметить отправку</button>{% endif %}</td>
+        </tr>{% endfor %}</tbody></table>{% else %}<p class="muted">КП ещё не создавались.</p>{% endif %}
+      </div>
+      <div class="card"><h2>Задачи</h2>
+        {% if tasks %}<table><thead><tr><th>Действие</th><th>Сводка</th><th>Срок</th><th>Статус</th><th></th></tr></thead>
+        <tbody>{% for t in tasks %}<tr>
+          <td>{{ ACTION_RU.get(t.action_type, t.action_type) }}</td><td>{{ t.summary }}</td><td>{{ t.due_at|localtime(user.timezone) }}</td><td><span class="badge">{{ TASK_STATE_RU.get(t.state, t.state) }}</span></td>
+          <td>{% if t.state == 'open' %}<button class="btn sm" onclick="completeTask({{ t.id }})">Выполнено</button>{% endif %}</td>
+        </tr>{% endfor %}</tbody></table>{% else %}<p class="muted">Задач нет.</p>{% endif %}
+      </div>
+      <div class="card"><h2>История</h2>
+        {% if activities %}<ul style="font-size:13.5px; padding-left:18px">
+          {% for a in activities %}<li><strong>{{ ACTIVITY_RU.get(a.activity_type, a.activity_type) }}</strong> — {{ a.occurred_at|localtime(user.timezone) }} {% if a.notes %}<span class="muted">({{ a.notes }})</span>{% endif %}</li>{% endfor %}
+        </ul>{% else %}<p class="muted">История пуста.</p>{% endif %}
+      </div>
+      <div class="modal-bg" x-show="showTask" x-cloak @click.self="showTask=false"><div class="modal"><h2>Новая задача</h2>
+        <form @submit.prevent="submitTask">
+          <label>Действие</label><select x-model="taskForm.action_type">{% for k, v in ACTION_RU.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+          <label>Сводка</label><input x-model="taskForm.summary" required>
+          <label>Срок</label><input type="datetime-local" x-model="taskForm.due_at" required>
+          <div class="err" x-show="error" x-text="error"></div>
+          <div class="row"><button type="button" class="btn sec" @click="showTask=false">Отмена</button><button type="submit" class="btn">Создать</button></div>
+        </form>
+      </div></div>
+      <div class="modal-bg" x-show="showProposal" x-cloak @click.self="showProposal=false"><div class="modal"><h2>Новая версия КП</h2>
+        <form @submit.prevent="submitProposal">
+          <label>Ссылка на КП</label><input x-model="proposalForm.link">
+          <div class="err" x-show="error" x-text="error"></div>
+          <div class="row"><button type="button" class="btn sec" @click="showProposal=false">Отмена</button><button type="submit" class="btn">Создать</button></div>
+        </form>
+      </div></div>
+      <div class="modal-bg" x-show="showHandoff" x-cloak @click.self="showHandoff=false"><div class="modal"><h2>Передать заказ</h2>
+        <form @submit.prevent="submitHandoff">
+          <label>ID получателя</label><input type="number" x-model.number="handoffForm.recipient_id" required>
+          <label>ID версии КП</label><input type="number" x-model.number="handoffForm.proposal_id" required>
+          <label>Объём</label><textarea x-model="handoffForm.agreed_scope" rows="2"></textarea>
+          <label>Сумма</label><input type="number" step="0.01" x-model="handoffForm.agreed_price">
+          <label>Валюта</label><input x-model="handoffForm.currency" placeholder="KZT">
+          <label>Срок или отметка</label><input x-model="handoffForm.agreed_deadline_or_note">
+          <label>Ссылка на материалы</label><input x-model="handoffForm.materials_link">
+          <div class="err" x-show="error" x-text="error"></div>
+          <div class="row"><button type="button" class="btn sec" @click="showHandoff=false">Отмена</button><button type="submit" class="btn">Передать</button></div>
+        </form>
+      </div></div>
+    </div>
+  </div>
+</div>
+<script>
+async function changeStage(){const stage=document.getElementById('stageSelect').value;const r=await fetch('/api/deals/{{ deal.id }}/transition',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage})});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}location.reload()}
+async function markSent(id){const link=prompt('Ссылка на КП:');if(!link)return;const channel=prompt('Канал:','email');if(!channel)return;const contactId=parseInt(prompt('ID контакта:','0')||'0');const r=await fetch('/api/proposals/'+id+'/sent',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({link,sent_channel:channel,sent_contact_id:contactId})});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}location.reload()}
+async function completeTask(id){const r=await fetch('/api/tasks/'+id+'/complete',{method:'POST',credentials:'same-origin'});if(r.ok)location.reload();else alert('Ошибка')}
+function dealApp(){return{showTask:false,showProposal:false,showHandoff:false,error:'',
+  taskForm:{action_type:'call',summary:'',due_at:''},proposalForm:{link:''},
+  handoffForm:{recipient_id:0,proposal_id:0,agreed_scope:'',agreed_price:null,currency:'',agreed_deadline_or_note:'',materials_link:''},
+  async submitTask(){const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({deal_id:{{ deal.id }},action_type:this.taskForm.action_type,summary:this.taskForm.summary,due_at:this.taskForm.due_at})});if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}location.reload()},
+  async submitProposal(){const r=await fetch('/api/deals/{{ deal.id }}/proposals',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({link:this.proposalForm.link})});if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}location.reload()},
+  async submitHandoff(){const r=await fetch('/api/deals/{{ deal.id }}/handoff',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(this.handoffForm)});if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}location.reload()},
+  async confirmSale(){const ref=prompt('Ссылка или номер подтверждения:');if(!ref)return;const r=await fetch('/api/deals/{{ deal.id }}/confirmation',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({confirmation_reference:ref})});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}location.reload()},
+  async checkBelarus(){const r=await fetch('/api/deals/{{ deal.id }}/check-belarus',{method:'POST',credentials:'same-origin'});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}alert('Проверка пройдена');location.reload()},
+  async rollback(){const stage=prompt('На какую стадию откатить?');if(!stage)return;const reason=prompt('Причина отката:');if(!reason)return;const r=await fetch('/api/deals/{{ deal.id }}/rollback?target_stage='+encodeURIComponent(stage)+'&reason='+encodeURIComponent(reason),{method:'POST',credentials:'same-origin'});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}location.reload()}
+}}
+</script>
+</body></html>

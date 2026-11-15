@@ -1,0 +1,45 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Отчёт — CRM</title>
+{% include "_theme.html" %}</head><body>
+<div class="app">
+{% with active='reports' %}{% include "_sidebar.html" %}{% endwith %}
+<div class="content">
+<div class="topbar"><h1>Отчёт руководителя</h1></div>
+<div class="page">
+<form class="toolbar" method="get" action="/reports">
+<input type="date" name="date_from" value="{{ filters.date_from or '' }}">
+<input type="date" name="date_to" value="{{ filters.date_to or '' }}">
+<select name="owner_id"><option value="0">Все менеджеры</option>{% for m in managers %}<option value="{{ m.id }}" {% if filters.owner_id == m.id %}selected{% endif %}>{{ m.full_name }}</option>{% endfor %}</select>
+<select name="country_id"><option value="0">Все страны</option>{% for c in countries %}<option value="{{ c.id }}" {% if filters.country_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+<select name="niche_id"><option value="0">Все ниши</option>{% for n in niches %}<option value="{{ n.id }}" {% if filters.niche_id == n.id %}selected{% endif %}>{{ n.name }}</option>{% endfor %}</select>
+<select name="service_id"><option value="0">Все услуги</option>{% for s in services %}<option value="{{ s.id }}" {% if filters.service_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select>
+<button type="submit" class="btn">Применить</button>
+<a href="/reports" class="btn sec">Сбросить</a>
+</form>
+<div class="card"><h2>Воронка (активные сделки)</h2>
+<div class="kpi">{% for st, n in report.funnel.items() %}<div><b>{{ n }}</b><span>{{ STAGE_RU.get(st, st) }}</span></div>{% endfor %}</div>
+</div>
+<div class="card"><h2>Нагрузка</h2>
+<div class="kpi">
+<div><b>{{ report.workload.open_today }}</b><span>Открытых задач на сегодня</span></div>
+<div><b>{{ report.workload.overdue }}</b><span>Просрочено</span></div>
+<div><b>{{ report.workload.no_next }}</b><span>Без следующего шага</span></div>
+</div></div>
+<div class="card"><h2>За период</h2>
+<div class="kpi">
+<div><b>{{ report.period.verified_companies or 0 }}</b><span>Проверенных компаний</span></div>
+<div><b>{{ report.period.dm_found_deals or 0 }}</b><span>Найденных ЛПР</span></div>
+<div><b>{{ report.period.proposals_sent }}</b><span>Версий КП</span></div>
+<div><b>{{ report.period.proposals_unique_deals }}</b><span>Сделок с КП</span></div>
+<div><b>{{ report.period.handoffs }}</b><span>Переданных заказов</span></div>
+<div><b>{{ report.period.sales_confirmed }}</b><span>Подтверждённых продаж</span></div>
+<div><b>{{ report.period.losses }}</b><span>Отказов</span></div>
+</div>
+{% if report.period.amounts %}<h3 style="margin:16px 0 8px; font-size:14px">Суммы продаж по валютам</h3>
+<table><thead><tr><th>Валюта</th><th>Сумма</th></tr></thead><tbody>
+{% for cur, amt in report.period.amounts.items() %}<tr><td>{{ cur }}</td><td>{{ amt }}</td></tr>{% endfor %}
+</tbody></table>{% endif %}
+{% if report.period.loss_reasons %}<h3 style="margin:16px 0 8px; font-size:14px">Причины отказов</h3>
+<ul style="font-size:13.5px; padding-left:18px">{% for r in report.period.loss_reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+</div>
+</div></div></div>
+</body></html>

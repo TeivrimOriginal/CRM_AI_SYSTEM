@@ -1,0 +1,43 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Профиль — CRM</title>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% include "_theme.html" %}</head><body>
+<div class="app">
+{% with active='profile' %}{% include "_sidebar.html" %}{% endwith %}
+<div class="content">
+<div class="topbar"><h1>Профиль</h1></div>
+<div class="page" x-data="profileApp()">
+<div class="card"><h2>Личные данные</h2>
+<form @submit.prevent="saveProfile">
+<label>Email</label><input type="email" value="{{ user.email }}" disabled>
+<label>ФИО</label><input x-model="full_name">
+<label>Часовой пояс</label>
+<select x-model="timezone">
+<option value="Europe/Moscow">Москва (UTC+3)</option>
+<option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+<option value="Asia/Almaty">Алматы (UTC+6)</option>
+<option value="Asia/Astana">Астана (UTC+6)</option>
+<option value="Asia/Tashkent">Ташкент (UTC+5)</option>
+<option value="Asia/Yerevan">Ереван (UTC+4)</option>
+<option value="Asia/Bishkek">Бишкек (UTC+6)</option>
+<option value="Europe/Minsk">Минск (UTC+3)</option>
+<option value="UTC">UTC</option>
+</select>
+<button type="submit" class="btn" style="margin-top:16px">Сохранить</button>
+<div class="msg" x-show="msg" x-text="msg"></div>
+<div class="err" x-show="error" x-text="error"></div>
+</form></div>
+<div class="card"><h2>Смена пароля</h2>
+<form @submit.prevent="changePassword">
+<label>Текущий пароль</label><input type="password" x-model="old_password">
+<label>Новый пароль (мин. 6)</label><input type="password" x-model="new_password">
+<button type="submit" class="btn" style="margin-top:16px">Сменить пароль</button>
+<div class="msg" x-show="pwdMsg" x-text="pwdMsg"></div>
+<div class="err" x-show="pwdErr" x-text="pwdErr"></div>
+</form></div>
+</div></div></div>
+<script>
+function profileApp(){return{full_name:"{{ user.full_name }}",timezone:"{{ user.timezone }}",old_password:'',new_password:'',msg:'',error:'',pwdMsg:'',pwdErr:'',
+async saveProfile(){this.msg='';this.error='';const r=await fetch('/api/auth/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({full_name:this.full_name,timezone:this.timezone})});if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}this.msg='Сохранено';location.reload()},
+async changePassword(){this.pwdMsg='';this.pwdErr='';const r=await fetch('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({old_password:this.old_password,new_password:this.new_password})});if(!r.ok){const d=await r.json().catch(()=>({}));this.pwdErr=JSON.stringify(d.detail||'Ошибка');return}this.pwdMsg='Пароль изменён';this.old_password='';this.new_password=''}}}
+</script>
+</body></html>

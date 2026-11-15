@@ -1,0 +1,21 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Вход — CRM</title>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% include "_theme.html" %}
+<style>body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg)}.login-card{background:var(--card);padding:32px;border-radius:var(--radius);box-shadow:var(--shadow);width:100%;max-width:380px}.login-card h1{margin-bottom:8px;font-size:22px}.login-card p{margin-bottom:20px;color:var(--text-muted);font-size:13px}.login-card label{display:block;font-size:13px;margin:12px 0 6px}.login-card input{width:100%;margin-bottom:4px}.login-card button{width:100%;margin-top:20px;padding:12px;font-size:15px}.theme-wrap{position:fixed;top:16px;right:16px}</style>
+</head><body>
+<div class="theme-wrap"><button class="theme-toggle" onclick="toggleTheme()">🌙</button></div>
+<div class="login-card" x-data="loginForm()">
+<h1>Вход в CRM</h1>
+<p>AI BUSINESS SYSTEMS DENMARK</p>
+<form @submit.prevent="submit">
+<label>Email</label><input type="email" x-model="email" required autofocus>
+<label>Пароль</label><input type="password" x-model="password" required>
+<button type="submit" class="btn" :disabled="loading" x-text="loading?'Вход...':'Войти'"></button>
+<div class="err" x-show="error" x-text="error"></div>
+<div style="text-align:center;margin-top:14px;font-size:14px"><a href="/register">Регистрация</a></div>
+</form></div>
+<script>
+function loginForm(){return{email:'',password:'',loading:false,error:'',
+async submit(){this.loading=true;this.error='';try{const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({email:this.email,password:this.password})});if(!res.ok){const d=await res.json().catch(()=>({}));this.error=typeof d.detail==='string'?d.detail:'Ошибка входа';this.loading=false;return}window.location.href='/'}catch(e){this.error='Сеть недоступна';this.loading=false}}}}
+</script>
+</body></html>

@@ -1,0 +1,32 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Админ — CRM</title>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% include "_theme.html" %}
+<style>.role-supervisor{background:rgba(239,68,68,.15);color:#ef4444}.role-manager{background:rgba(79,70,229,.15);color:#6366f1}.inactive{opacity:.5}</style>
+</head><body>
+<div class="app">
+{% with active='admin' %}{% include "_sidebar.html" %}{% endwith %}
+<div class="content">
+<div class="topbar"><h1>Админ-панель</h1></div>
+<div class="page">
+<div class="card"><h2>Пользователи и статистика</h2>
+{% if stats %}<table>
+<thead><tr><th>ID</th><th>ФИО</th><th>Email</th><th>Роль</th><th>TZ</th><th>Акт.</th><th>Компаний</th><th>Сделок</th><th>Продаж</th><th>Задач</th><th>Просроч.</th><th>Действия</th></tr></thead>
+<tbody>{% for s in stats %}<tr class="{% if not s.user.is_active %}inactive{% endif %}">
+<td>{{ s.user.id }}</td><td>{{ s.user.full_name }}</td><td>{{ s.user.email }}</td>
+<td><span class="badge role-{{ s.user.role }}">{{ s.user.role }}</span></td>
+<td>{{ s.user.timezone }}</td><td>{{ 'Да' if s.user.is_active else 'Нет' }}</td>
+<td>{{ s.companies }}</td><td>{{ s.deals }}</td><td>{{ s.sales }}</td><td>{{ s.open_tasks }}</td>
+<td style="color:{% if s.overdue > 0 %}var(--danger){% else %}var(--text-muted){% endif %}">{{ s.overdue }}</td>
+<td>{% if s.user.id != user.id %}
+{% if s.user.role == 'manager' %}<button class="btn sm" style="background:var(--danger)" onclick="setRole({{ s.user.id }}, 'supervisor', {{ 'true' if s.user.is_active else 'false' }})">→ sup</button>
+{% else %}<button class="btn sm" onclick="setRole({{ s.user.id }}, 'manager', {{ 'true' if s.user.is_active else 'false' }})">→ mgr</button>{% endif %}
+<button class="btn sm sec" onclick="setRole({{ s.user.id }}, '{{ s.user.role }}', {{ 'false' if s.user.is_active else 'true' }})">{{ 'Блок' if s.user.is_active else 'Вкл' }}</button>
+{% else %}<span class="muted" style="font-size:12px">это вы</span>{% endif %}</td>
+</tr>{% endfor %}</tbody></table>
+{% else %}<p class="muted">Нет пользователей.</p>{% endif %}
+</div>
+</div></div></div>
+<script>
+async function setRole(userId, role, isActive){const r=await fetch('/api/auth/users/'+userId+'/role',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({role:role,is_active:isActive})});if(r.ok)location.reload();else{const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:'Ошибка')}}
+</script>
+</body></html>

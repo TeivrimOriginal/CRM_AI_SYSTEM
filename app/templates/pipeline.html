@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Воронка — CRM</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {% include "_theme.html" %}
+  <style>
+    .board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 14px; align-items: flex-start; }
+    .col { min-width: 260px; background: var(--bg-alt); border-radius: var(--radius); padding: 12px; flex-shrink: 0; }
+    .col h3 { margin: 0 0 10px; font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+    .deal-card { background: var(--card); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px; font-size: 13px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+    .deal-card a { color: var(--text); text-decoration: none; font-weight: 600; display: block; margin-bottom: 4px; }
+    .deal-card a:hover { color: var(--primary); }
+    .deal-card .meta { color: var(--text-muted); margin-top: 3px; font-size: 12px; }
+    .deal-card select { width: 100%; margin-top: 8px; padding: 5px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  {% with active='pipeline' %}{% include "_sidebar.html" %}{% endwith %}
+  <div class="content">
+    <div class="topbar">
+      <h1>Воронка</h1>
+      <div class="actions"><button class="btn" @click="$root.__x?.$data?.showCreate; location.hash='#new'">+ Сделка</button></div>
+    </div>
+    <div class="page" x-data="pipelineApp()">
+      <form class="toolbar" method="get" action="/pipeline">
+        <select name="country_id"><option value="0">Все страны</option>{% for c in countries %}<option value="{{ c.id }}" {% if filters.country_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+        <select name="niche_id"><option value="0">Все ниши</option>{% for n in niches %}<option value="{{ n.id }}" {% if filters.niche_id == n.id %}selected{% endif %}>{{ n.name }}</option>{% endfor %}</select>
+        {% if user.role == 'supervisor' %}<select name="owner_id"><option value="0">Все менеджеры</option>{% for m in managers %}<option value="{{ m.id }}" {% if filters.owner_id == m.id %}selected{% endif %}>{{ m.full_name }}</option>{% endfor %}</select>{% endif %}
+        <button type="submit" class="btn">Найти</button>
+        <button type="button" class="btn" @click="showCreate=true">+ Сделка</button>
+        {% if user.role == 'supervisor' %}<a href="/api/deals/export.csv?country_id={{ filters.country_id or 0 }}&niche_id={{ filters.niche_id or 0 }}&owner_id={{ filters.owner_id or 0 }}" class="btn sec">Экспорт CSV</a>{% endif %}
+      </form>
+      <div class="board">
+        {% for st in stages %}
+        <div class="col"><h3>{{ STAGE_RU.get(st, st) }}</h3>
+          {% for d in by_stage.get(st, []) %}
+          <div class="deal-card">
+            <a href="/deals/{{ d.id }}">{{ d.title }}</a>
+            <div class="meta">{{ companies_by_id[d.company_id].name if d.company_id in companies_by_id else 'Компания' }}</div>
+            <div class="meta">{{ d.amount|string + ' ' + d.currency if d.amount else 'Сумма не указана' }}</div>
+            <select onchange="changeStage({{ d.id }}, this.value)">{% for s in stages %}<option value="{{ s }}" {% if s == d.stage %}selected{% endif %}>{{ STAGE_RU.get(s, s) }}</option>{% endfor %}</select>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="modal-bg" x-show="showCreate" x-cloak @click.self="showCreate=false">
+        <div class="modal"><h2>Новая сделка</h2>
+          <form @submit.prevent="submitCreate">
+            <label>Компания</label><select x-model.number="form.company_id" required><option value="0">— выберите —</option>{% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+            <label>Название</label><input x-model="form.title" required>
+            <label>Услуга</label><select x-model.number="form.service_id" required><option value="0">— выберите —</option>{% for s in services %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+            <label>Потребность</label><textarea x-model="form.customer_need" rows="2"></textarea>
+            <label>Сумма</label><input type="number" step="0.01" x-model="form.amount">
+            <label>Валюта</label><input x-model="form.currency" placeholder="KZT">
+            <div class="err" x-show="error" x-text="error"></div>
+            <div class="row"><button type="button" class="btn sec" @click="showCreate=false">Отмена</button><button type="submit" class="btn">Создать</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function changeStage(id, stage){const r=await fetch('/api/deals/'+id+'/transition',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage})});if(!r.ok){const d=await r.json().catch(()=>({}));alert(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail));return}location.reload()}
+function pipelineApp(){return{
+  showCreate:false,error:'',
+  form:{company_id:0,title:'',service_id:0,customer_need:'',amount:null,currency:''},
+  async submitCreate(){const r=await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({company_id:this.form.company_id,title:this.form.title,service_id:this.form.service_id,customer_need:this.form.customer_need||null,amount:this.form.amount||null,currency:this.form.currency||null})});if(!r.ok){const d=await r.json().catch(()=>({}));this.error=typeof d.detail==='string'?d.detail:JSON.stringify(d.detail||'Ошибка');return}location.reload()}
+}}
+</script>
+</body>
+</html>

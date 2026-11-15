@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мои задачи — CRM</title>
+  {% include "_theme.html" %}
+  <style>
+    .section h2 { font-size: 15px; margin-bottom: 12px; }
+    .section.overdue h2 { color: var(--danger); }
+  </style>
+</head>
+<body>
+<div class="app">
+  {% with active='tasks' %}{% include "_sidebar.html" %}{% endwith %}
+  <div class="content">
+    <div class="topbar"><h1>Мои задачи</h1></div>
+    <div class="page">
+      <div class="card section overdue"><h2>Просрочено ({{ overdue|length }})</h2>
+        {% if overdue %}<table><thead><tr><th>Действие</th><th>Срок</th><th></th></tr></thead><tbody>
+        {% for t in overdue %}<tr><td data-label="Действие">{{ t.summary }}</td><td data-label="Срок">{{ t.due_at|localtime(user.timezone) }}</td>
+        <td><button class="btn sm" onclick="completeTask({{ t.id }})">Выполнено</button></td></tr>{% endfor %}
+        </tbody></table>{% else %}<p class="muted">Нет просроченных задач.</p>{% endif %}
+      </div>
+      <div class="card section"><h2>Сегодня ({{ today|length }})</h2>
+        {% if today %}<table><thead><tr><th>Действие</th><th>Срок</th><th></th></tr></thead><tbody>
+        {% for t in today %}<tr><td data-label="Действие">{{ t.summary }}</td><td data-label="Срок">{{ t.due_at|localtime(user.timezone) }}</td>
+        <td><button class="btn sm" onclick="completeTask({{ t.id }})">Выполнено</button></td></tr>{% endfor %}
+        </tbody></table>{% else %}<p class="muted">На сегодня задач нет.</p>{% endif %}
+      </div>
+      <div class="card section"><h2>Предстоящие ({{ upcoming|length }})</h2>
+        {% if upcoming %}<table><thead><tr><th>Действие</th><th>Срок</th><th></th></tr></thead><tbody>
+        {% for t in upcoming %}<tr><td data-label="Действие">{{ t.summary }}</td><td data-label="Срок">{{ t.due_at|localtime(user.timezone) }}</td>
+        <td><button class="btn sm" onclick="completeTask({{ t.id }})">Выполнено</button></td></tr>{% endfor %}
+        </tbody></table>{% else %}<p class="muted">Предстоящих задач нет.</p>{% endif %}
+      </div>
+      <div class="card section"><h2>Без следующего шага ({{ no_next|length }})</h2>
+        {% if no_next %}<table><thead><tr><th>Сделка</th><th>Стадия</th><th></th></tr></thead><tbody>
+        {% for d in no_next %}<tr><td data-label="Сделка">{{ d.title }}</td><td data-label="Стадия">{{ STAGE_RU.get(d.stage, d.stage) }}</td>
+        <td><a href="/deals/{{ d.id }}" class="btn sm">Открыть</a></td></tr>{% endfor %}
+        </tbody></table>{% else %}<p class="muted">Все активные сделки имеют следующий шаг.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+async function completeTask(id){const r=await fetch('/api/tasks/'+id+'/complete',{method:'POST',credentials:'same-origin'});if(r.ok)location.reload();else alert('Ошибка')}
+</script>
+</body>
+</html>

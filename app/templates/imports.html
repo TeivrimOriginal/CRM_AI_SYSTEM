@@ -1,0 +1,40 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Импорт — CRM</title>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{% include "_theme.html" %}</head><body>
+<div class="app">
+{% with active='imports' %}{% include "_sidebar.html" %}{% endwith %}
+<div class="content">
+<div class="topbar"><h1>Импорт компаний</h1></div>
+<div class="page" x-data="importApp()">
+<div class="card"><h2>Загрузка файла</h2>
+<p class="muted" style="margin-bottom:12px; font-size:13px">Колонки: <b>name, country</b> (опционально city, website_url).</p>
+<div class="toolbar">
+<button class="btn" :class="mode==='csv'?'':'sec'" @click="mode='csv'">CSV</button>
+<button class="btn" :class="mode==='xlsx'?'':'sec'" @click="mode='xlsx'">XLSX</button>
+<input type="file" :accept="mode==='csv'?'.csv':'.xlsx,.xls'" @change="onFile($event)">
+</div>
+<div x-show="rows.length" style="margin-top:16px">
+<h3 style="margin-bottom:10px; font-size:14px">Предпросмотр (<span x-text="rows.length"></span> строк)</h3>
+<table><thead><tr><th>#</th><th>Название</th><th>Страна</th><th>Сайт</th><th>Статус</th><th>Причина</th></tr></thead>
+<tbody><template x-for="r in rows" :key="r.row_number"><tr>
+<td x-text="r.row_number"></td><td x-text="r.name"></td><td x-text="r.country"></td><td x-text="r.website_url||''"></td>
+<td><span class="badge" :style="r.status==='ok'?'background:rgba(16,185,129,.15);color:#10b981':(r.status==='dup'?'background:rgba(245,158,11,.15);color:#f59e0b':'background:rgba(239,68,68,.15);color:#ef4444')" x-text="r.status"></span></td>
+<td x-text="r.reason||''"></td></tr></template></tbody></table>
+<button class="btn" @click="commit()" style="margin-top:14px">Импортировать принятые</button>
+</div>
+<div class="msg" x-show="result" x-text="result"></div>
+<div class="err" x-show="error" x-text="error"></div>
+</div>
+</div></div></div>
+<script>
+function importApp(){return{mode:'csv',rows:[],result:'',error:'',
+async onFile(e){this.error='';this.result='';const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);
+const url=this.mode==='csv'?'/api/imports/preview':'/api/imports/preview-xlsx';
+const r=await fetch(url,{method:'POST',body:fd,credentials:'same-origin'});
+if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}
+const data=await r.json();this.rows=data.rows||[]},
+async commit(){const r=await fetch('/api/imports/commit',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({rows:this.rows})});
+if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}
+const res=await r.json();this.result='Импортировано: '+res.ok+', пропущено: '+res.skipped+', ошибок: '+res.failed;this.rows=[]}}}
+</script>
+</body></html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Компании — CRM</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  {% include "_theme.html" %}
+</head>
+<body>
+<div class="app">
+  {% with active='companies' %}{% include "_sidebar.html" %}{% endwith %}
+  <div class="content" x-data="companiesApp()">
+    <div class="topbar">
+      <h1>Компании</h1>
+      <div class="actions">
+        <button type="button" class="btn" @click="showCreate=true">+ Добавить</button>
+      </div>
+    </div>
+    <div class="page">
+      <form class="toolbar" method="get" action="/companies">
+        <input type="text" name="q" placeholder="Поиск по названию или домену" value="{{ filters.q }}">
+        <select name="country_id"><option value="0">Все страны</option>{% for c in countries %}<option value="{{ c.id }}" {% if filters.country_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+        <select name="city_id"><option value="0">Все города</option>{% for c in cities %}<option value="{{ c.id }}" {% if filters.city_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+        <select name="niche_id"><option value="0">Все ниши</option>{% for n in niches %}<option value="{{ n.id }}" {% if filters.niche_id == n.id %}selected{% endif %}>{{ n.name }}</option>{% endfor %}</select>
+        {% if user.role == 'supervisor' %}<select name="owner_id"><option value="0">Все менеджеры</option>{% for m in managers %}<option value="{{ m.id }}" {% if filters.owner_id == m.id %}selected{% endif %}>{{ m.full_name }}</option>{% endfor %}</select>{% endif %}
+        <button type="submit" class="btn">Найти</button>
+        {% if user.role == 'supervisor' %}
+        <a href="/imports" class="btn sec">Импорт</a>
+        <a href="/api/companies/export.csv?q={{ filters.q }}&country_id={{ filters.country_id }}&city_id={{ filters.city_id }}&niche_id={{ filters.niche_id }}&owner_id={{ filters.owner_id }}" class="btn sec">Экспорт CSV</a>
+        {% endif %}
+      </form>
+      <div class="card" style="padding:0; overflow:hidden">
+        {% if companies %}
+        <table>
+          <thead><tr><th>Название</th><th>Сайт</th><th>Менеджер</th><th>Активных сделок</th></tr></thead>
+          <tbody>{% for c in companies %}<tr>
+            <td data-label="Название"><a href="/companies/{{ c.id }}">{{ c.name }}</a></td>
+            <td data-label="Сайт">{{ c.normalized_domain or 'Не указано' }}</td>
+            <td data-label="Менеджер">{% for m in managers %}{% if m.id == c.owner_id %}{{ m.full_name }}{% endif %}{% endfor %}</td>
+            <td data-label="Активных сделок">{{ active_deals.get(c.id, 0) }}</td>
+          </tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<p class="muted" style="padding:40px; text-align:center">Нет компаний. Нажмите «Добавить» или «Импорт».</p>{% endif %}
+      </div>
+      <div class="modal-bg" x-show="showCreate" x-cloak @click.self="showCreate=false">
+        <div class="modal"><h2>Новая компания</h2>
+          <form @submit.prevent="submitCreate">
+            <label>Название *</label><input x-model="form.name" required>
+            <label>Страна *</label><select x-model.number="form.country_id" required><option value="0">— выберите —</option>{% for c in countries %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+            <label>Город</label><select x-model.number="form.city_id"><option value="0">—</option>{% for c in cities %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
+            <label>Ниша</label><select x-model.number="form.niche_id"><option value="0">—</option>{% for n in niches %}<option value="{{ n.id }}">{{ n.name }}</option>{% endfor %}</select>
+            <label>Сайт</label><input x-model="form.website_url" placeholder="example.com">
+            <label>Потребность</label><textarea x-model="form.observed_need" rows="3"></textarea>
+            <div class="err" x-show="error" x-text="error"></div>
+            <div class="row"><button type="button" class="btn sec" @click="showCreate=false">Отмена</button><button type="submit" class="btn">Создать</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function companiesApp(){
+  return {
+    showCreate:false, error:'',
+    form:{name:'',country_id:0,city_id:0,niche_id:0,website_url:'',observed_need:''},
+    async submitCreate(){
+      this.error='';
+      const r = await fetch('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+        body:JSON.stringify({name:this.form.name,country_id:this.form.country_id,city_id:this.form.city_id||null,
+          niche_id:this.form.niche_id||null,website_url:this.form.website_url||null,observed_need:this.form.observed_need||null})});
+      if(!r.ok){const d=await r.json().catch(()=>({}));this.error=JSON.stringify(d.detail||'Ошибка');return}
+      location.reload();
+    }
+  }
+}
+</script>
+</body>
+</html>
